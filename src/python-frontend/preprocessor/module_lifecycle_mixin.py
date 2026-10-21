@@ -54,6 +54,7 @@ class ModuleLifecycleMixin:
         self._bind_class_alias_calls(node)
         self._bind_type_values(node)
         self._bind_nested_classes_via_self(node)
+        self._copy_methods_into_heirs(node)
         self._builtin_shadow_names = self._scan_builtin_shadow_names(node)
         self._unobservable_builtin_keys = self._scan_unobservable_builtin_keys(node)
         self._closed_lambda_bindings = self._scan_closed_lambda_bindings(node)

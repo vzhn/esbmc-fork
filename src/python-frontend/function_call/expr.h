@@ -926,6 +926,12 @@ private:
 
   /// Indirect call through a function pointer held in an instance field.
   std::optional<exprt> try_indirect_member_call();
+  /// An AttributeError for `x.attr(...)` on a @p class_name receiver when
+  /// every store of @p attr puts a method on `self` and no class in the MRO
+  /// binds it, so no @p class_name instance holds it (#8956).
+  std::optional<exprt> raise_unheld_attribute(
+    const std::string &class_name,
+    const std::string &attr) const;
   /// The functions field @p attr of @p class_name holds, when it is untyped
   /// and no class in its MRO binds @p attr too.
   const python_converter::attribute_functions *held_functions(

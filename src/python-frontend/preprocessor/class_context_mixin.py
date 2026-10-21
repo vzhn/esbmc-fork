@@ -483,6 +483,47 @@ class ClassContextMixin:
                     for stmt in method.body:
                         _QualifyNestedClasses(renames).visit(stmt)
 
+    def _calls_unresolved_attribute(self, classes, cls, method):
+        """Whether `method` of `cls` calls `self.x(...)` with an `x` that no
+        class in the ancestry of `cls` defines, so only an attribute an
+        instance gets elsewhere can supply it."""
+        receiver = self._receiver(method)
+        return receiver is not None and any(
+            isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+            and isinstance(n.func.value, ast.Name) and n.func.value.id == receiver
+            and self._method_owner(classes, cls, n.func.attr) is None for n in ast.walk(method))
+
+    def _heirs_needing_copy(self, classes, owner, member):
+        """The subclasses of `owner` to give their own copy of `member`, or
+        none when one overrides it or it uses `super()`, which would bind
+        another class."""
+        if (not self._calls_unresolved_attribute(classes, owner, member)
+                or {"super", "__class__"} & self._names_mentioned(member)):
+            return []
+        family = [c for c in classes.values() if owner in self._class_ancestry(classes, c)]
+        heirs = [c for c in family if self._method_owner(classes, c, member.name) is owner]
+        if len(heirs) != len(family) or not self._can_bind(member, heirs):
+            return []
+        return [c for c in heirs if c is not owner]
+
+    def _copy_methods_into_heirs(self, module):
+        """Give each subclass inheriting a method that calls `self.x(...)`,
+        with `x` defined by no ancestor, its own copy (#8956).
+
+        The copy types its receiver as the subclass, which may give `x`. Only
+        in the entry module, for a class that no other class's object reaches
+        (see _bind_nested_classes_via_self)."""
+        classes = self._top_level_classes(module)
+        if not self.is_entry_module or classes is None:
+            return
+        escaped = self._escaped_classes(module, classes) | self._unbindable_classes(classes)
+        for owner in classes.values():
+            if self._inherits_from(classes, owner, escaped):
+                continue
+            for member in list(owner.body):
+                for heir in self._heirs_needing_copy(classes, owner, member):
+                    heir.body.append(copy.deepcopy(member))
+
     @staticmethod
     def _is_name_copy(node):
         """Whether `node` is a plain `x = y` assignment."""
