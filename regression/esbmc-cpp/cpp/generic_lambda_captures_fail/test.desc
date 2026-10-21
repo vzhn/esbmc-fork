@@ -1,0 +1,5 @@
+CORE
+main.cpp
+--std c++14
+^VERIFICATION FAILED$
+^ +FAILED +\[main\.assertion\.1\] +line +23 +assertion s\.x == 2$
