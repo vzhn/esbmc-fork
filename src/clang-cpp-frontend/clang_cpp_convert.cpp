@@ -2740,7 +2740,14 @@ bool clang_cpp_convertert::get_function_body(
     // body so that cap_map lookups inside the body translation succeed.
     if (const auto *md = llvm::dyn_cast<clang::CXXMethodDecl>(&fd))
     {
-      if (md->getParent()->getLambdaCallOperator() == md)
+      // A generic lambda's call operator is a template: the function
+      // converted here is one of its specializations
+      const clang::CXXMethodDecl *call_op =
+        md->getParent()->getLambdaCallOperator();
+      const clang::FunctionTemplateDecl *tmpl = md->getPrimaryTemplate();
+      if (
+        call_op &&
+        (call_op == md || (tmpl && tmpl->getTemplatedDecl() == call_op)))
       {
         field_mapt captures;
         clang::FieldDecl *thisCapture{};
