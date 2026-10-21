@@ -6097,10 +6097,57 @@ bool clang_c_convertert::get_APValue_expr(
   {
   case clang::APValue::LValue:
   {
-    // This is probably a string constant
     clang::APValue::LValueBase base = value.getLValueBase();
-    assert(base.is<const clang::Expr *>());
-    const clang::Expr *expr = base.get<const clang::Expr *>();
+
+#if CLANG_VERSION_MAJOR >= 15
+    // __builtin_source_location() is the address of an unnamed constant (the
+    // std::source_location::__impl of its call site) that no declaration
+    // introduces: add its symbol on first use, as for a template parameter
+    // object
+    if (
+      const auto *ugc =
+        llvm::dyn_cast_if_present<clang::UnnamedGlobalConstantDecl>(
+          base.dyn_cast<const clang::ValueDecl *>()))
+    {
+      typet t;
+      if (get_type(ugc->getType(), t))
+        return true;
+
+      auto [it, added] = unnamed_constant_ids.try_emplace(
+        ugc,
+        "__ESBMC_unnamed_constant_" +
+          std::to_string(unnamed_constant_ids.size()));
+      const std::string &id = it->second;
+      if (added)
+      {
+        const clang::QualType qt = ugc->getType();
+        exprt init;
+        if (get_APValue_expr(ugc->getValue(), init, &qt))
+          return true;
+
+        symbolt symbol;
+        get_default_symbol(symbol, "", t, id, id, locationt());
+        symbol.lvalue = true;
+        symbol.static_lifetime = true;
+        symbol.set_value(init);
+        context.move_symbol_to_context(symbol);
+      }
+
+      exprt sym("symbol", t);
+      sym.identifier(id);
+      sym.name(id);
+      new_expr = address_of_exprt(sym);
+      break;
+    }
+#endif
+
+    // This is probably a string constant
+    const clang::Expr *expr = base.dyn_cast<const clang::Expr *>();
+    if (!expr)
+    {
+      log_error("Unsupported APValue lvalue base");
+      return true;
+    }
     if (get_expr(*expr, new_expr))
       return true;
     break;
@@ -6150,7 +6197,10 @@ bool clang_c_convertert::get_APValue_expr(
         if (get_APValue_expr(value.getStructBase(base_idx), sub, &bt))
           return true;
         if (op_idx < new_expr.operands().size())
+        {
+          gen_typecast(ns, sub, new_expr.operands().at(op_idx).type());
           new_expr.operands().at(op_idx) = sub;
+        }
         ++base_idx;
         ++op_idx;
       }
@@ -6167,8 +6217,12 @@ bool clang_c_convertert::get_APValue_expr(
         clang::QualType ft = fd->getType();
         if (get_APValue_expr(value.getStructField(field_idx), sub, &ft))
           return true;
+        // e.g. a string literal (an array) into a const char * field
         if (op_idx < new_expr.operands().size())
+        {
+          gen_typecast(ns, sub, new_expr.operands().at(op_idx).type());
           new_expr.operands().at(op_idx) = sub;
+        }
         ++field_idx;
         ++op_idx;
       }
