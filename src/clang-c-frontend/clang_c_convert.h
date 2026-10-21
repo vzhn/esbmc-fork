@@ -124,6 +124,12 @@ protected:
 
   const clang::FunctionDecl *current_functionDecl;
 
+  /** The default argument or default member initializer being converted, if
+   *  any: a source-location builtin in it (e.g. the __builtin_LINE() default
+   *  of std::source_location::current()) evaluates at its use, not where it
+   *  is written ([support.srcloc.cons]). */
+  const clang::Expr *source_loc_context = nullptr;
+
   /** Address-taken labels of the function being converted, in the order the
    *  addresses appear. A label has no storage, so `&&L` lowers to its 1-based
    *  position cast to a pointer and `goto *p` to an equality chain over those

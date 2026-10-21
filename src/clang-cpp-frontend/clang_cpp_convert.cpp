@@ -959,7 +959,11 @@ bool clang_cpp_convertert::get_expr(const clang::Stmt &stmt, exprt &new_expr)
     const clang::CXXDefaultArgExpr &cxxdarg =
       static_cast<const clang::CXXDefaultArgExpr &>(stmt);
 
-    if (get_expr(*cxxdarg.getExpr(), new_expr))
+    const clang::Expr *outer = source_loc_context;
+    source_loc_context = &cxxdarg;
+    bool failed = get_expr(*cxxdarg.getExpr(), new_expr);
+    source_loc_context = outer;
+    if (failed)
       return true;
 
     break;
@@ -970,7 +974,11 @@ bool clang_cpp_convertert::get_expr(const clang::Stmt &stmt, exprt &new_expr)
     const clang::CXXDefaultInitExpr &cxxdie =
       static_cast<const clang::CXXDefaultInitExpr &>(stmt);
 
-    if (get_expr(*cxxdie.getExpr(), new_expr))
+    const clang::Expr *outer = source_loc_context;
+    source_loc_context = &cxxdie;
+    bool failed = get_expr(*cxxdie.getExpr(), new_expr);
+    source_loc_context = outer;
+    if (failed)
       return true;
 
     break;
