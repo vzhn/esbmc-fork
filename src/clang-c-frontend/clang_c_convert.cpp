@@ -279,6 +279,12 @@ bool clang_c_convertert::get_decl(const clang::Decl &decl, exprt &new_expr)
   // C++20 concept definitions: clang evaluates the constraint at template
   // instantiation time, so the ConceptDecl itself has no runtime form.
   case clang::Decl::Concept:
+
+  // A file-scope asm declaration (e.g. GCC 14's <iostream> emits
+  // `.globl _ZSt21ios_base_library_initv`) only passes text to the
+  // assembler; a function it defines is a body ESBMC does not have, as for
+  // any external function.
+  case clang::Decl::FileScopeAsm:
     break;
 
   // We pretty much ignore this information, clang does the expansion for us.
