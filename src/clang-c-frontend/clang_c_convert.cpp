@@ -3919,7 +3919,8 @@ bool clang_c_convertert::get_expr(const clang::Stmt &stmt, exprt &new_expr)
 
     const clang::SourceLocExpr &loc =
       static_cast<const clang::SourceLocExpr &>(stmt);
-    clang::APValue value = loc.EvaluateInContext(*ASTContext, nullptr);
+    clang::APValue value =
+      loc.EvaluateInContext(*ASTContext, source_loc_context);
 
     /* An APValue represents some constant. For constants derived from source
      * locations, it could either be a string (file / function name) or an int
