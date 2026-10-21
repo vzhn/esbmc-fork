@@ -117,6 +117,11 @@ protected:
    *  (C11 6.7.6.2p5, 6.7.8p3). Keyed by clang's size expression, which every
    *  expression typed by that declarator shares. */
   std::unordered_map<const clang::Expr *, exprt> vla_size_snapshots;
+
+  /** The symbol of each unnamed global constant (the location object of a
+   *  __builtin_source_location() call), added on first use */
+  std::unordered_map<const clang::Decl *, std::string> unnamed_constant_ids;
+
   bool snapshot_vla_sizes(const clang::Decl &decl, codet &dest);
   bool get_vla_size(const clang::Expr &size, exprt &new_expr);
 
